@@ -1,0 +1,16 @@
+QMAKE_DEFAULT_INCDIRS = \
+    /usr/arm-linux-gnueabihf/include/c++/8 \
+    /usr/arm-linux-gnueabihf/include/c++/8/arm-linux-gnueabihf \
+    /usr/arm-linux-gnueabihf/include/c++/8/backward \
+    /usr/lib/gcc-cross/arm-linux-gnueabihf/8/include \
+    /usr/lib/gcc-cross/arm-linux-gnueabihf/8/include-fixed \
+    /usr/arm-linux-gnueabihf/include \
+    /home/user/raspi/sysroot/usr/include/arm-linux-gnueabihf \
+    /home/user/raspi/sysroot/usr/include
+QMAKE_DEFAULT_LIBDIRS = \
+    /usr/lib/gcc-cross/arm-linux-gnueabihf/8 \
+    /usr/arm-linux-gnueabihf/lib \
+    /home/user/raspi/sysroot/lib/arm-linux-gnueabihf \
+    /home/user/raspi/sysroot/lib \
+    /home/user/raspi/sysroot/usr/lib/arm-linux-gnueabihf \
+    /home/user/raspi/sysroot/usr/lib
