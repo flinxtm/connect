@@ -983,11 +983,11 @@ void carwash::impl::on_stat_progs_show(opcua::variant _val)
                         //nl::json pc = alles::settings::instance().get("program_count");
                         //nl::json hc = alles::settings::instance().get("chemistry_count");
                         //qDebug()<<"program_count"<<pc.dump().c_str();
-                        nl::json pc=m_client.array_size(TAG_ST4_PROG,NS);
-                        nl::json hc=m_client.array_size(TAG_ST4_CHEM,NS);
+                        unsigned prog_len = m_client.array_size(TAG_ST4_PROG,NS);
+                        unsigned chem_len = m_client.array_size(TAG_ST4_CHEM,NS);
 
-                        opcua::variant v1((uint32_t*) arr_prog,pc );
-                        opcua::variant v2((uint32_t*) arr_chem, hc);
+                        opcua::variant v1((uint32_t*) arr_prog, prog_len);
+                        opcua::variant v2((uint32_t*) arr_chem, chem_len);
                         //qDebug()<<"program_count1"<<m_client.array_size(TAG_ST4_PROG,NS);
                         m_client.write(TAG_ST4_PROG, v1, NS);
                         m_client.write(TAG_ST4_CHEM, v2, NS);
