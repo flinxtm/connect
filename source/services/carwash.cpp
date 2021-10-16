@@ -105,6 +105,8 @@
 #define TAG_DATE                "::AsGlobalPV:DateTime.Date"
 #define TAG_TIME                "::AsGlobalPV:DateTime.Time"
 
+unsigned MoneyScaleFactor = 1;
+
 namespace alles {
 
 // ------------------------------------------------------------------------------------------
@@ -202,6 +204,9 @@ struct carwash::impl
 
     void on_date_changed(opcua::variant _val);
     void on_time_changed(opcua::variant _val);
+
+    void on_sw_version(opcua::variant _val);
+    void on_currency_digits_changed(opcua::variant _val);
 
     void update_finance(int _unit_id);
 };
@@ -355,6 +360,8 @@ void carwash::perform_background_tasks()
 #define TAG_CONFIG_HW_SN        "::AsGlobalPV:BuildInfo.sn"
 #define TAG_CONFIG_HW_NIC       "::AsGlobalPV:BuildInfo.nic"
 
+#define TAG_CONFIG_CURRENCY_DIGITS "::AsGlobalPV:gFixedCurrency.digits"
+
 void carwash::impl::read_config()
 {
     try
@@ -415,6 +422,8 @@ void carwash::impl::subscribe()
             m_client.subscribe(TAG_DATE, NS, std::bind(&impl::on_date_changed, this, _1));
             m_client.subscribe(TAG_TIME, NS, std::bind(&impl::on_time_changed, this, _1));
 
+            m_client.subscribe(TAG_CONFIG_SW_VERSION, NS, std::bind(&impl::on_sw_version, this, _1));
+
             for (int i = 0; i < 8; ++i)
             {
                 // events for new posts
@@ -463,8 +472,9 @@ void carwash::impl::subscribe()
 
             // chemistry counters
 
-            for (unsigned i = 0; i < 9; ++i)
-            {
+            unsigned chemistry_count = m_client.array_size("::AsGlobalPV:ProcessEventExtern.chemistryCons", NS);
+            qDebug() << "CARWASH: subscribe(): chemistry_count = " << chemistry_count;
+            for (unsigned i = 0; i < chemistry_count; i++) {
                 tag = fmt::format(TAG_CHEMISTRY, i);
                 m_client.subscribe(tag, NS, std::bind(&impl::on_chemistry, this, (chemistry_type) i, _1));
             }
@@ -500,6 +510,33 @@ void carwash::impl::subscribe()
 }
 
 // ------------------------------------------------------------------------------------------
+void carwash::impl::on_sw_version(opcua::variant _val)
+{
+    try {
+        using namespace std::placeholders;
+        std::string sw_version = (std::string) _val;
+        unsigned sw_number = QString::fromStdString(sw_version.c_str()).split(".").join("").toInt();
+        qDebug() << "CARWASH: subscribe(): sw_version = " << sw_number;
+        if (sw_number >= 473) {
+            m_client.subscribe(TAG_CONFIG_CURRENCY_DIGITS, NS, std::bind(&impl::on_currency_digits_changed, this, _1));
+        }
+    } catch(std::exception& _ex) {
+        logger::instance().log_error(fmt::format("Exception during on_sw_version: {0}", _ex.what()));
+    }
+}
+
+void carwash::impl::on_currency_digits_changed(opcua::variant _val)
+{
+    try {
+        uint8_t v = _val;
+        logger::instance().log_debug(fmt::format("CARWASH: on_currency_digits_changed: {0}", v));
+        if (v > 0) {
+            MoneyScaleFactor = pow(10, v);
+        }
+    } catch(std::exception& _ex) {
+        logger::instance().log_error(fmt::format("Exception during on_currency_digits_changed: {0}", _ex.what()));
+    }
+}
 
 void carwash::impl::on_add_money(unsigned _post_id, opcua::variant _val)
 {
@@ -507,26 +544,20 @@ void carwash::impl::on_add_money(unsigned _post_id, opcua::variant _val)
     {
         uint8_t v = _val;
 
-        if (v > 0)
-        {
+        if (v > 0)  {
             m_service_money_counter[_post_id] = v;
-            //logger::instance().log_debug(fmt::format("Add money received... {0}", v));
-        }
-        else
-        {
-            if (m_service_money_counter.count(_post_id) && m_service_money_counter.at(_post_id) > 0)
-            {
+            logger::instance().log_debug(fmt::format("Add money received... {0}", v));
+        } else {
+            if (m_service_money_counter.count(_post_id) && m_service_money_counter.at(_post_id) > 0) {
                 uint16_t s = 0;
-                if (_post_id < 8)
-                {
+                if (_post_id < 8)  {
                     s = m_client.read(TAG_SERVICE_MONEY, NS);
                     uint32_t sum = s * m_service_money_counter.at(_post_id);
                     //logger::instance().log_debug(fmt::format("Store service money on {0}... {1}", _post_id, sum));
 
                     storage::instance().store_money(money_service, _post_id, 0, sum, nl::json());
-                }
-                else if (_post_id >= 40 && _post_id < 46)
-                {
+                } else
+                if (_post_id >= 40 && _post_id < 46) {
                     s = m_client.read(TAG_VSERVICE_MONEY, NS);
                     uint32_t sum = s * m_service_money_counter.at(_post_id);
                     unsigned unit_id = (_post_id-40) / 2;
@@ -536,9 +567,7 @@ void carwash::impl::on_add_money(unsigned _post_id, opcua::variant _val)
             }
             m_service_money_counter[_post_id] = 0;
         }
-    }
-    catch(std::exception& _ex)
-    {
+    } catch(std::exception& _ex) {
         logger::instance().log_error(fmt::format("Exception during add_money: {0}", _ex.what()));
     }
 }
