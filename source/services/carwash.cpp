@@ -243,20 +243,21 @@ void carwash::impl::process_events()
         {
             m_prev_state = st;
             m_try_connect = false;
-            //qDebug()<<"opcua::client::state_session"<<st;
+
             read_config();
 
-            if (!m_subscribed)
-            {
+            if (!m_subscribed) {
                 alles::logger::instance().log_status("OPC-UA connected, subscribing...");
+
                 ping();
                 m_ping_timer.reset();
+
                 subscribe();
+
                 update_finance(-1);
             }
 
-            if (m_ping_timer.elapsed().count() >= 10000)
-            {
+            if (m_ping_timer.elapsed().count() >= 10000) {
                 m_ping_timer.reset();
                 ping();
             }
@@ -291,24 +292,24 @@ void carwash::impl::process_events()
             }
             catch(std::exception& _ex)
             {
-                //alles::logger::instance().log_status(_ex.what());
+                alles::logger::instance().log_status(_ex.what());
                 m_client.disconnect();
+                std::this_thread::sleep_for(std::chrono::milliseconds(3000));
             }
         }
     }
 
-    // perform queued tasks
+
     {
         std::lock_guard<std::recursive_mutex> lock(m_task_mutex);
-
-        for (auto it = m_tasks.begin(); it != m_tasks.end(); ++it)
-        {
+        for (auto it = m_tasks.begin(); it != m_tasks.end(); ++it) {
             task& tsk = (*it);
             tsk.func();
         }
-
         m_tasks.clear();
     }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
 }
 
 // ------------------------------------------------------------------------------------------
@@ -473,7 +474,7 @@ void carwash::impl::subscribe()
             // chemistry counters
 
             unsigned chemistry_count = m_client.array_size("::AsGlobalPV:ProcessEventExtern.chemistryCons", NS);
-            qDebug() << "CARWASH: subscribe(): chemistry_count = " << chemistry_count;
+            alles::logger::instance().log_debug(fmt::format("CARWASH: subscribe(): chemistry_count = {}", chemistry_count));
             for (unsigned i = 0; i < chemistry_count; i++) {
                 tag = fmt::format(TAG_CHEMISTRY, i);
                 m_client.subscribe(tag, NS, std::bind(&impl::on_chemistry, this, (chemistry_type) i, _1));
@@ -528,7 +529,7 @@ void carwash::impl::on_sw_version(opcua::variant _val)
 void carwash::impl::on_currency_digits_changed(opcua::variant _val)
 {
     try {
-        uint8_t v = _val;
+        uint32_t v = _val;
         logger::instance().log_debug(fmt::format("CARWASH: on_currency_digits_changed: {0}", v));
         if (v > 0) {
             MoneyScaleFactor = pow(10, v);
@@ -801,6 +802,7 @@ void carwash::impl::on_chemistry(chemistry_type _type, opcua::variant _val)
 
                             tag = fmt::format(TAG_CHEMISTRY, chemistry_insect);
                             m_client.write(tag, (uint32_t) 0, NS);
+
                             tag = fmt::format(TAG_CHEMISTRY, chemistry_color);
                             m_client.write(tag, (uint32_t) 0, NS);
                         }
@@ -862,7 +864,9 @@ void carwash::impl::on_stat_main_show(opcua::variant _val)
                 try
                 {
                     storage::instance().get_main_stat_data(r, 0, jresult1, 8, filter);
+                    alles::logger::instance().log_debug(jresult1.dump());
                     storage::instance().get_main_stat_data(r, 1, jresult2, 6, 0);
+                    alles::logger::instance().log_debug(jresult2.dump());
                 }
                 catch(std::exception& _ex)
                 {
@@ -982,15 +986,22 @@ void carwash::impl::on_stat_progs_show(opcua::variant _val)
                 nl::json jresult;
                 uint16_t days = 0;
 
-                uint32_t arr_prog[28]= {0};
+                uint32_t arr_prog[28] = {0};
                 uint32_t arr_chem[9]  = {0};
+
 
                 try
                 {
                     storage::instance().get_progs_stat_data(r, arr_prog, 8);
+                    nl::json js = nl::json::array({});
+                    js.clear(); for (auto i: arr_prog) js.push_back(i);
+                    alles::logger::instance().log_debug(js.dump());
+
                     storage::instance().get_chemistry_data(r, days, arr_chem);
-                    //for(int i=0; i<28;i++)
-                     //   qDebug()<<"I = "<<i<<arr_prog[i];
+                    js.clear(); for (auto i: arr_chem) js.push_back(i);
+                    alles::logger::instance().log_debug(js.dump());
+                    alles::logger::instance().log_debug(QString::number(days).toStdString());
+
                 }
                 catch(std::exception& _ex)
                 {
@@ -1073,6 +1084,14 @@ void carwash::impl::on_stat_hourly_show(opcua::variant _val)
                 try
                 {
                     storage::instance().get_hourly_data(r, arr, arr2,sum,avg,days);
+                    nl::json js = nl::json::array({});
+                    js.clear(); for (auto i: arr) js.push_back(i);
+                    alles::logger::instance().log_debug(js.dump());
+                    js.clear(); for (auto i: arr2) js.push_back(i);
+                    alles::logger::instance().log_debug(js.dump());
+                    alles::logger::instance().log_debug(QString::number(sum).toStdString());
+                    alles::logger::instance().log_debug(QString::number(avg).toStdString());
+                    alles::logger::instance().log_debug(QString::number(days).toStdString());
                 }
                 catch(std::exception& _ex)
                 {
@@ -1153,6 +1172,11 @@ void carwash::impl::on_stat_daily_show(opcua::variant _val)
                 try
                 {
                     storage::instance().get_daily_data(r, arr,days, start);
+                    nl::json js = nl::json::array({});
+                    js.clear(); for (auto i: arr) js.push_back(i);
+                    alles::logger::instance().log_debug(js.dump());
+                    alles::logger::instance().log_debug(QString::number(days).toStdString());
+                    alles::logger::instance().log_debug(QString::number(start).toStdString());
                 }
                 catch(std::exception& _ex)
                 {
@@ -1230,6 +1254,7 @@ void carwash::impl::on_collect_history_show(opcua::variant _val)
                 try
                 {
                     storage::instance().get_collect_history(r, jresult);
+                    alles::logger::instance().log_debug(jresult.dump());
                 }
                 catch(std::exception& _ex)
                 {
@@ -1608,22 +1633,21 @@ void carwash::impl::on_bonus_enable(opcua::variant _val)
     std::string serial;
 
     try {
-        bonus::instance().set_enabled(_val);
-        if ((bool)_val == true) {
-            qDebug()<<"Bonus Enabled";
-            qDebug()<<"m_serial = "<<QString::fromStdString(m_serial);
+        bool val = (bool) _val;
+        bonus::instance().set_enabled(val);
+        if (val == true) {
             if (m_serial.size() < 10) {
                 serial = exec("cat /proc/cpuinfo | grep Serial | cut -d ' ' -f 2").substr(8, 8);
                 serial = "RCW" + serial;
             } else {
                 serial = m_serial;
             }
-            qDebug()<<"SERIAL_NUMER = "<<QString::fromStdString(serial);
             bonus::instance().set_cw_serial(serial);
             on_refresh_cert();
         }
-    } catch(...) {
-        qDebug()<<"on_bonus_enable - Exeption";
+        qDebug()<<"CARWASH: on_bonus_enable(): " << QVariant(val).toString() << ", serial = " << m_serial.c_str();
+    } catch(std::exception& _ex) {
+        qDebug()<<"CARWASH: on_bonus_enable(): " << fmt::format("Exception: {0}", _ex.what()).c_str();
     }
 }
 

@@ -720,7 +720,7 @@ void storage::get_main_stat_data(range& _r, int _type, nl::json& _jresult, unsig
     auto sql = fmt::format(s, _r.start_year, _r.start_month, _r.start_day,
                               _r.end_year,   _r.end_month,   _r.end_day, t);
 
-    alles::logger::instance().log_status("Getting money stats...");
+    //alles::logger::instance().log_status("Getting money stats...");
 
     pqxx::connection conn(DB_CONN_STRING);
     pqxx::read_transaction txn(conn);
@@ -737,7 +737,7 @@ void storage::get_main_stat_data(range& _r, int _type, nl::json& _jresult, unsig
     auto sql2 = fmt::format(s2, _r.start_year, _r.start_month, _r.start_day,
                               _r.end_year,   _r.end_month,   _r.end_day, _filter, t);
 
-    alles::logger::instance().log_status("Getting wash stats...");
+    //alles::logger::instance().log_status("Getting wash stats...");
 
     pqxx::result result2 = txn.exec(sql2);
 
@@ -752,9 +752,13 @@ void storage::get_main_stat_data(range& _r, int _type, nl::json& _jresult, unsig
             if (i == row[0].as<unsigned>() - base)
             {
                 if (!row[1].is_null()) j["sum_cash"]    = row[1].as<unsigned>();
+                //alles::logger::instance().log_debug("!!!-1-!!!");
                 if (!row[2].is_null()) j["sum_cards"]    = row[2].as<unsigned>();
+                //alles::logger::instance().log_debug("!!!-2-!!!");
                 if (!row[3].is_null()) j["sum_bonus"]   = row[3].as<unsigned>();
+                //alles::logger::instance().log_debug("!!!-3-!!!");
                 if (!row[4].is_null()) j["sum_service"] = row[4].as<unsigned>();
+                //alles::logger::instance().log_debug("!!!-4-!!!");
             }
         }
 
@@ -765,13 +769,18 @@ void storage::get_main_stat_data(range& _r, int _type, nl::json& _jresult, unsig
             if (i == row[0].as<unsigned>() - base)
             {
                 if (!row[1].is_null()) j["washes"]      = row[1].as<unsigned>();
+                //alles::logger::instance().log_debug("!!!-5-!!!");
                 if (!row[2].is_null()) j["money_spent"] = row[2].as<unsigned>();
+                //alles::logger::instance().log_debug("!!!-6-!!!");
                 if (!row[3].is_null()) j["duration"]    = row[3].as<unsigned>();
+                //alles::logger::instance().log_debug("!!!-7-!!!");
             }
         }
 
         _jresult.push_back(j);
     }
+
+     //alles::logger::instance().log_debug("!!!-8-!!!");
 
     auto s3 = "SELECT date "
               "FROM finance_daily "
@@ -812,6 +821,7 @@ void storage::get_main_stat_data(range& _r, int _type, nl::json& _jresult, unsig
             _r.end_day = static_cast<uint16_t>(day);
         }
     }
+     //alles::logger::instance().log_debug("!!!-9-!!!");
 }
 
 // ------------------------------------------------------------------------------------------
@@ -865,6 +875,8 @@ void storage::get_progs_stat_data(range& _r, uint32_t* _result, unsigned _post_c
     pqxx::read_transaction txn(conn);
     pqxx::result result = txn.exec(sql);
 
+    //alles::logger::instance().log_debug("JOPA - 1");
+
     if (result.size() > 0)
     {
         const pqxx::row& row = result[0];
@@ -874,10 +886,12 @@ void storage::get_progs_stat_data(range& _r, uint32_t* _result, unsigned _post_c
             if (ii >= 27)
                 break;
 
-            if (!row[ii].is_null())
-                _result[ii+1] = row[ii].as<unsigned>();
+            if (!row[ii].is_null()) {
+                _result[ii+1] = static_cast<uint32_t>(row[ii].as<unsigned>());
+            }
         }
     }
+    //alles::logger::instance().log_debug("JOPA - 2");
 
     auto s3 = "SELECT date "
               "FROM washes "
@@ -889,6 +903,7 @@ void storage::get_progs_stat_data(range& _r, uint32_t* _result, unsigned _post_c
 
     pqxx::result result3 = txn.exec(sql3);
 
+    //alles::logger::instance().log_debug("JOPA - 3");
     if (result3.size() > 0)
     {
         std::string last_date;
@@ -907,6 +922,7 @@ void storage::get_progs_stat_data(range& _r, uint32_t* _result, unsigned _post_c
             }
 
            last_date = row[0].as<std::string>();
+      //     alles::logger::instance().log_debug(last_date);
         }
 
         if (!last_date.empty())
@@ -918,6 +934,8 @@ void storage::get_progs_stat_data(range& _r, uint32_t* _result, unsigned _post_c
             _r.end_day = static_cast<uint16_t>(day);
         }
     }
+    //alles::logger::instance().log_debug("JOPA - 4");
+
 }
 
 // ------------------------------------------------------------------------------------------
@@ -1686,6 +1704,8 @@ nl::json storage::get_finance_daily(const std::string& _date)
         }
     }
 
+    //logger::instance().log_debug(fmt::format("wet post sum_cash = {0}, sum_cards = {1}",  sum_cash_wet, sum_card_wet));
+
     {
         auto sql = "SELECT SUM(sum_cash), SUM(sum_cards) FROM finance_daily WHERE unit_id BETWEEN 40 AND 59 AND date='{}';";
 
@@ -1702,6 +1722,8 @@ nl::json storage::get_finance_daily(const std::string& _date)
                 sum_card_dry = row[1].as<unsigned>();
         }
     }
+
+    //logger::instance().log_debug(fmt::format("dry post sum_cash = {0}, sum_cards = {1}",  sum_cash_dry, sum_card_dry));
 
     {
         auto sql = "SELECT {} FROM finance_hourly WHERE date='{}';";
@@ -1738,6 +1760,7 @@ nl::json storage::get_finance_daily(const std::string& _date)
     }
 
     txn.commit();
+    //logger::instance().log_debug(res.dump());
     qDebug()<<"RES ="<<QString().fromStdString(res.dump());
     return res;
 }

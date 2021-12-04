@@ -1,4 +1,3 @@
-
 TEMPLATE = app
 CONFIG += console c++14 object_parallel_to_source
 CONFIG -= app_bundle
@@ -76,6 +75,8 @@ SOURCES += \
     ../source/services/bonus.cpp \
     ../lib/utils/time.cpp
 
+HEADERS += \
+    ../source/version.h
 
 
 

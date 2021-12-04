@@ -152,6 +152,15 @@ void settings::impl::set_ip()
         std::cout << exec(fmt::format("ifconfig eth0 192.168.{0}.3", subnet).c_str()) << std::endl;
         std::cout << exec(fmt::format("route add default gw 192.168.{0}.1", subnet).c_str())  << std::endl;
     }
+
+    // set resolve.conf DNS
+    {
+        auto sconf =
+                "nameserver 8.8.8.8\n"
+                "nameserver 192.168.{0}.1";
+        auto str = fmt::format(sconf, subnet);
+        exec(fmt::format("echo '{}' > /etc/resolv.conf", str));
+    }
 }
 
 // ------------------------------------------------------------------------------------------

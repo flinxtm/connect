@@ -126,6 +126,7 @@ int start(bool _debug, int argc, char *argv[])
     // setup TLS listener and session traffic counter
 
     set_bonus_perm();
+
     std::thread([]() // background task thread
     {
         prctl(PR_SET_NAME,"background\0",0,0,0);

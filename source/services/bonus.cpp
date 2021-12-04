@@ -200,15 +200,15 @@ void bonus::impl::process()
                 m_try_send_queue = true;
 
                 const nl::json& j = m_send_queue.begin().value();
-                qDebug()<<"proces = "<<j.dump().c_str();
-                if (j.count("method") && j.at("method") == "append_money")
-                {
+                qDebug() << "BONUS: process(): m_send_queue = " << j.dump().c_str();
+                if (j.count("method") && j.at("method") == "append_money") {
                     append_money(j.at("params"));
-                }
-                else if (j.count("method") && j.at("method") == "wash_complete")
-                {
+                } else
+                if (j.count("method") && j.at("method") == "wash_complete") {
                     wash_complete(j.at("params"));
                 }
+
+                qDebug() << "BONUS: process(): m_send_queue = " << j.dump().c_str();
 
                 m_send_queue.erase(0);
                 queue_save();
@@ -847,46 +847,44 @@ void bonus::impl::check_finance()
 
                     nl::json days = nl::json::array();
 
-                    while (true)
+                    auto cur_day = ts.date();
+                    while (next_date <= cur_day)
                     {
-                        auto max_day = get_max_day(month, year);
-                        if (month == 12 && day == max_day)
-                        {
-                            year++; month = 1; day = 1; // rotate year
-                        }
-                        else if (day == max_day)
-                        {
-                            month++; day = 1; // rotate month
-                        }
-                        else
-                            day++;
-
-                        next_date = fmt::format("{0}-{1:02d}-{2:02d}", year, month, day);
-                        if (next_date == ts.date())
-                            break;
-
-                        logger::instance().log_debug("BONUS: adding data for " + next_date);
-
                         nl::json d = storage::instance().get_finance_daily(next_date);
-                        if (d.empty())
-                            continue;
 
-                        days.push_back(d);
+                        if (!d.empty()) {
+                            logger::instance().log_debug("BONUS: adding data for " + next_date);
+                            days.push_back(d);
+                        }
 
-                        if (days.size() == 10) // limit 10 days per request
-                        {
+                        if (days.size() == 10) { // limit 10 days per request
                             m_finance_need_more = true;
                             break;
                         }
+
+                        auto max_day = get_max_day(month, year);
+                        if (month == 12 && day == max_day) {
+                            year++; month = 1; day = 1; // rotate year
+                        } else if (day == max_day)  {
+                            month++; day = 1; // rotate month
+                        } else {
+                            day++;
+                        }
+
+                        next_date = fmt::format("{0}-{1:02d}-{2:02d}", year, month, day);
                     }
+
                     qDebug()<<"IN WHILE"<<QString().fromStdString(next_date);
-                    //if (days.empty())
-                    //    return;
+
+                    if (days.empty()) {
+                        return;
+                    }
 
                     logger::instance().log_debug("BONUS: sending finance data");
 
                     http.set_header("Content-Type", "application/json; charset=utf-8");
                     std::tie(status, body) = http.post(url, days.dump());
+                    logger::instance().log_debug(days.dump());
                     qDebug()<<"GET FINANCE!!!!!"<<url<<QString().fromStdString(days.dump());
                     check_response(url, status, body);
                 }
